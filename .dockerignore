@@ -1,0 +1,9 @@
+.git
+.github
+.serena
+data
+dist
+bin
+*.log
+*.tmp
+coverage.out
