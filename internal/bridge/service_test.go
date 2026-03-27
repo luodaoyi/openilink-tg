@@ -248,6 +248,49 @@ func TestStartMonitorPersistsState(t *testing.T) {
 	}
 }
 
+func TestStartMonitorPersistsStateWhenVoicePayloadIncludesEncodeType(t *testing.T) {
+	t.Parallel()
+
+	client := &fakeClient{
+		monitorMessage: ilink.WeixinMessage{
+			FromUserID:   "wx-user-voice",
+			ContextToken: "ctx-voice",
+			ItemList: []ilink.MessageItem{
+				{
+					Type: ilink.ItemVoice,
+					VoiceItem: &ilink.VoiceItem{
+						EncodeType: ilink.VoiceFormatSILK,
+						SampleRate: 24000,
+						PlayTime:   3,
+					},
+				},
+			},
+		},
+	}
+	store := &fakeStore{}
+
+	service, err := NewService(client, store, Config{})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = service.StartMonitor(ctx)
+	if err != nil && !errors.Is(err, context.Canceled) {
+		t.Fatalf("start monitor: %v", err)
+	}
+
+	if got := store.state.ContextTokens["wx-user-voice"]; got != "ctx-voice" {
+		t.Fatalf("unexpected stored context token: %s", got)
+	}
+
+	if client.contextTokens["wx-user-voice"] != "ctx-voice" {
+		t.Fatalf("expected client context token to be updated")
+	}
+}
+
 func TestGetMeReturnsConfiguredProfile(t *testing.T) {
 	t.Parallel()
 

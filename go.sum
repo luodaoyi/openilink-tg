@@ -1,2 +1,4 @@
 github.com/openilink/openilink-sdk-go v0.0.0-20260322032919-18ca2eb3fed2 h1:QBO+ogBgi1QDz98cNOFInrQbRKv66VMMCC6JAaqWtmU=
 github.com/openilink/openilink-sdk-go v0.0.0-20260322032919-18ca2eb3fed2/go.mod h1:Z+B/V/3gQgqY2OIg9fYO5k0UoqdOzix8AnK6OjyM4Yg=
+github.com/openilink/openilink-sdk-go v0.4.3-0.20260323044310-dbaa27ea451b h1:m4kbUQzoiWoHtDgYs8jr8qCdQVF1GxgW7gmHHJzIi98=
+github.com/openilink/openilink-sdk-go v0.4.3-0.20260323044310-dbaa27ea451b/go.mod h1:Z+B/V/3gQgqY2OIg9fYO5k0UoqdOzix8AnK6OjyM4Yg=
