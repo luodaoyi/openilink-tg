@@ -23,9 +23,6 @@ type fakeClient struct {
 	sendTextResult      string
 	sendTextErr         error
 	sendMediaErr        error
-	sendVoiceErr        error
-	lastVoiceCaption    string
-	lastVoiceData       []byte
 	getConfigResult     *ilink.GetConfigResp
 	getConfigErr        error
 	sendTypingErr       error
@@ -52,14 +49,6 @@ func (f *fakeClient) SendMediaFile(_ context.Context, to string, contextToken st
 	f.lastMediaFileName = fileName
 	f.lastMediaCaption = caption
 	return f.sendMediaErr
-}
-
-func (f *fakeClient) SendVoiceFile(_ context.Context, to string, contextToken string, data []byte, caption string) error {
-	f.lastSendTo = to
-	f.lastSendContext = contextToken
-	f.lastVoiceData = append([]byte(nil), data...)
-	f.lastVoiceCaption = caption
-	return f.sendVoiceErr
 }
 
 func (f *fakeClient) GetContextToken(userID string) (string, bool) {
@@ -262,14 +251,14 @@ func TestSendVoiceUsesVoicePath(t *testing.T) {
 	if client.lastSendContext != "ctx-1" {
 		t.Fatalf("unexpected context token: %s", client.lastSendContext)
 	}
-	if client.lastMediaFileName != "" {
-		t.Fatalf("voice should not use generic media path, got file name: %s", client.lastMediaFileName)
+	if client.lastMediaFileName != "voice.ogg" {
+		t.Fatalf("unexpected file name: %s", client.lastMediaFileName)
 	}
-	if client.lastVoiceCaption != "voice caption" {
-		t.Fatalf("unexpected voice caption: %s", client.lastVoiceCaption)
+	if client.lastMediaCaption != "voice caption" {
+		t.Fatalf("unexpected caption: %s", client.lastMediaCaption)
 	}
-	if string(client.lastVoiceData) != "voice-bytes" {
-		t.Fatalf("unexpected voice payload: %s", string(client.lastVoiceData))
+	if string(client.lastMediaData) != "voice-bytes" {
+		t.Fatalf("unexpected media payload: %s", string(client.lastMediaData))
 	}
 	if sent.ChatID != "wx-user-1" || sent.Text != "voice caption" {
 		t.Fatalf("unexpected send result: %+v", sent)

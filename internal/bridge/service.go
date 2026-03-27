@@ -19,7 +19,6 @@ import (
 type Client interface {
 	SendText(ctx context.Context, to string, text string, contextToken string) (string, error)
 	SendMediaFile(ctx context.Context, to string, contextToken string, data []byte, fileName string, caption string) error
-	SendVoiceFile(ctx context.Context, to string, contextToken string, data []byte, caption string) error
 	GetContextToken(userID string) (string, bool)
 	SetContextToken(userID string, token string)
 	GetConfig(ctx context.Context, userID string, contextToken string) (*ilink.GetConfigResp, error)
@@ -121,12 +120,7 @@ func (s *Service) SendMedia(ctx context.Context, chatID string, method string, f
 		return httpapi.SentMessage{}, httpapi.ErrBadRequest("media payload is empty")
 	}
 
-	var err error
-	if method == "sendVoice" {
-		err = s.client.SendVoiceFile(ctx, chatID, contextToken, data, caption)
-	} else {
-		err = s.client.SendMediaFile(ctx, chatID, contextToken, data, fileName, caption)
-	}
+	err := s.client.SendMediaFile(ctx, chatID, contextToken, data, fileName, caption)
 	if err != nil {
 		return httpapi.SentMessage{}, httpapi.ErrBadGateway(err.Error())
 	}
