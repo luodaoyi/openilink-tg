@@ -207,7 +207,7 @@ func TestSendMediaUsesCachedContextToken(t *testing.T) {
 		t.Fatalf("new service: %v", err)
 	}
 
-	sent, err := service.SendMedia(context.Background(), "wx-user-1", "photo.jpg", []byte("image-bytes"), "hi")
+	sent, err := service.SendMedia(context.Background(), "wx-user-1", "sendPhoto", "photo.jpg", []byte("image-bytes"), "hi")
 	if err != nil {
 		t.Fatalf("send media: %v", err)
 	}
@@ -225,6 +225,78 @@ func TestSendMediaUsesCachedContextToken(t *testing.T) {
 		t.Fatalf("unexpected media payload: %s", string(client.lastMediaData))
 	}
 	if sent.ChatID != "wx-user-1" || sent.Text != "hi" {
+		t.Fatalf("unexpected send result: %+v", sent)
+	}
+}
+
+func TestSendVoiceUsesVoicePath(t *testing.T) {
+	t.Parallel()
+
+	client := &fakeClient{
+		contextTokens: map[string]string{
+			"wx-user-1": "ctx-1",
+		},
+	}
+
+	service, err := NewService(client, &fakeStore{}, Config{})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	sent, err := service.SendMedia(context.Background(), "wx-user-1", "sendVoice", "voice.ogg", []byte("voice-bytes"), "voice caption")
+	if err != nil {
+		t.Fatalf("send media: %v", err)
+	}
+
+	if client.lastSendContext != "ctx-1" {
+		t.Fatalf("unexpected context token: %s", client.lastSendContext)
+	}
+	if client.lastMediaFileName != "voice.ogg" {
+		t.Fatalf("unexpected file name: %s", client.lastMediaFileName)
+	}
+	if client.lastMediaCaption != "voice caption" {
+		t.Fatalf("unexpected caption: %s", client.lastMediaCaption)
+	}
+	if string(client.lastMediaData) != "voice-bytes" {
+		t.Fatalf("unexpected media payload: %s", string(client.lastMediaData))
+	}
+	if sent.ChatID != "wx-user-1" || sent.Text != "voice caption" {
+		t.Fatalf("unexpected send result: %+v", sent)
+	}
+}
+
+func TestSendAnimationUsesGenericMediaPath(t *testing.T) {
+	t.Parallel()
+
+	client := &fakeClient{
+		contextTokens: map[string]string{
+			"wx-user-1": "ctx-1",
+		},
+	}
+
+	service, err := NewService(client, &fakeStore{}, Config{})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	sent, err := service.SendMedia(context.Background(), "wx-user-1", "sendAnimation", "funny.gif", []byte("gif-bytes"), "gif caption")
+	if err != nil {
+		t.Fatalf("send media: %v", err)
+	}
+
+	if client.lastSendContext != "ctx-1" {
+		t.Fatalf("unexpected context token: %s", client.lastSendContext)
+	}
+	if client.lastMediaFileName != "funny.gif" {
+		t.Fatalf("unexpected file name: %s", client.lastMediaFileName)
+	}
+	if client.lastMediaCaption != "gif caption" {
+		t.Fatalf("unexpected caption: %s", client.lastMediaCaption)
+	}
+	if string(client.lastMediaData) != "gif-bytes" {
+		t.Fatalf("unexpected media payload: %s", string(client.lastMediaData))
+	}
+	if sent.ChatID != "wx-user-1" || sent.Text != "gif caption" {
 		t.Fatalf("unexpected send result: %+v", sent)
 	}
 }
