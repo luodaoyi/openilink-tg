@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -17,9 +18,14 @@ type fakeBridge struct {
 	lastChatID       string
 	lastText         string
 	lastAction       string
+	lastCaption      string
+	lastFileName     string
+	lastMediaData    []byte
 	sendTextErr      error
+	sendMediaErr     error
 	sendTypingErr    error
 	sendTextResult   SentMessage
+	sendMediaResult  SentMessage
 	sendTypingCalled bool
 }
 
@@ -31,6 +37,14 @@ func (f *fakeBridge) SendText(_ context.Context, chatID string, text string) (Se
 	f.lastChatID = chatID
 	f.lastText = text
 	return f.sendTextResult, f.sendTextErr
+}
+
+func (f *fakeBridge) SendMedia(_ context.Context, chatID string, fileName string, data []byte, caption string) (SentMessage, error) {
+	f.lastChatID = chatID
+	f.lastFileName = fileName
+	f.lastMediaData = append([]byte(nil), data...)
+	f.lastCaption = caption
+	return f.sendMediaResult, f.sendMediaErr
 }
 
 func (f *fakeBridge) SendTyping(_ context.Context, chatID string, action string) error {
@@ -168,6 +182,69 @@ func TestSendMessageWithFormBodyCallsBridge(t *testing.T) {
 
 	if bridge.lastChatID != "wx-user-2" || bridge.lastText != "hello form" {
 		t.Fatalf("bridge did not receive expected payload")
+	}
+}
+
+func TestSendPhotoWithMultipartBodyCallsBridge(t *testing.T) {
+	t.Parallel()
+
+	bridge := &fakeBridge{
+		sendMediaResult: SentMessage{
+			MessageID: 2001,
+			ChatID:    "wx-user-media",
+			Text:      "caption text",
+			SentAt:    time.Unix(1700000002, 0),
+		},
+	}
+
+	handler := NewHandler(Options{
+		TelegramToken: "secret-token",
+		Bridge:        bridge,
+	})
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	_ = writer.WriteField("chat_id", "wx-user-media")
+	_ = writer.WriteField("caption", "caption text")
+	part, err := writer.CreateFormFile("photo", "photo.jpg")
+	if err != nil {
+		t.Fatalf("create form file: %v", err)
+	}
+	if _, err = part.Write([]byte("image-bytes")); err != nil {
+		t.Fatalf("write form file: %v", err)
+	}
+	if err = writer.Close(); err != nil {
+		t.Fatalf("close writer: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/botsecret-token/sendPhoto", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("unexpected status: got %d want %d", rec.Code, http.StatusOK)
+	}
+	if bridge.lastChatID != "wx-user-media" {
+		t.Fatalf("unexpected chat_id: %s", bridge.lastChatID)
+	}
+	if bridge.lastFileName != "photo.jpg" {
+		t.Fatalf("unexpected file name: %s", bridge.lastFileName)
+	}
+	if bridge.lastCaption != "caption text" {
+		t.Fatalf("unexpected caption: %s", bridge.lastCaption)
+	}
+	if string(bridge.lastMediaData) != "image-bytes" {
+		t.Fatalf("unexpected payload: %s", string(bridge.lastMediaData))
+	}
+
+	var resp apiResponse[messageResult]
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp.Result.Caption != "caption text" {
+		t.Fatalf("unexpected response caption: %s", resp.Result.Caption)
 	}
 }
 

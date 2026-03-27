@@ -18,6 +18,7 @@ import (
 // Client 描述桥接层所依赖的 iLink 客户端能力。
 type Client interface {
 	SendText(ctx context.Context, to string, text string, contextToken string) (string, error)
+	SendMediaFile(ctx context.Context, to string, contextToken string, data []byte, fileName string, caption string) error
 	GetContextToken(userID string) (string, bool)
 	SetContextToken(userID string, token string)
 	GetConfig(ctx context.Context, userID string, contextToken string) (*ilink.GetConfigResp, error)
@@ -107,6 +108,31 @@ func (s *Service) SendText(ctx context.Context, chatID string, text string) (htt
 }
 
 // SendTyping 将 Telegram chat action 转换为微信 typing 状态。
+func (s *Service) SendMedia(ctx context.Context, chatID string, fileName string, data []byte, caption string) (httpapi.SentMessage, error) {
+	contextToken, ok := s.client.GetContextToken(chatID)
+	if !ok || strings.TrimSpace(contextToken) == "" {
+		return httpapi.SentMessage{}, httpapi.ErrBadRequest("chat context token not found")
+	}
+	if strings.TrimSpace(fileName) == "" {
+		return httpapi.SentMessage{}, httpapi.ErrBadRequest("file name is required")
+	}
+	if len(data) == 0 {
+		return httpapi.SentMessage{}, httpapi.ErrBadRequest("media payload is empty")
+	}
+
+	if err := s.client.SendMediaFile(ctx, chatID, contextToken, data, fileName, caption); err != nil {
+		return httpapi.SentMessage{}, httpapi.ErrBadGateway(err.Error())
+	}
+
+	now := s.now()
+	return httpapi.SentMessage{
+		MessageID: s.synthesizeMessageID(chatID+":"+fileName, now),
+		ChatID:    chatID,
+		Text:      caption,
+		SentAt:    now,
+	}, nil
+}
+
 func (s *Service) SendTyping(ctx context.Context, chatID string, _ string) error {
 	contextToken, ok := s.client.GetContextToken(chatID)
 	if !ok || strings.TrimSpace(contextToken) == "" {
