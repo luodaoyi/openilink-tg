@@ -4,24 +4,17 @@
 
 ## 当前能力
 
-当前已支持：
+首版聚焦最小可用链路，只支持：
 
 - `GET /bot<TOKEN>/getMe`
 - `POST /bot<TOKEN>/sendMessage`
-- `POST /bot<TOKEN>/sendPhoto`
-- `POST /bot<TOKEN>/sendDocument`
-- `POST /bot<TOKEN>/sendVideo`
-- `POST /bot<TOKEN>/sendVoice`
-- `POST /bot<TOKEN>/sendAudio`
-- `POST /bot<TOKEN>/sendAnimation`
 - `POST /bot<TOKEN>/sendChatAction`
 - `GET /healthz`
 
 约束说明：
 
 - `chat_id` 直接映射为微信 iLink 的用户 ID。
-- `sendMessage` 支持文本消息。
-- `sendPhoto` / `sendDocument` / `sendVideo` / `sendVoice` / `sendAudio` / `sendAnimation` 当前支持 `multipart/form-data` 文件上传，并透传 `caption`。
+- `sendMessage` 当前只支持文本消息。
 - `sendChatAction` 当前统一映射为微信侧 `typing`。
 - 主动推送依赖历史入站消息中的 `context_token`。
 
@@ -87,60 +80,6 @@ curl -X POST "http://localhost:8080/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
   }'
 ```
 
-### `sendPhoto`
-
-```bash
-curl -X POST "http://localhost:8080/bot${TELEGRAM_BOT_TOKEN}/sendPhoto" \
-  -F chat_id=wx-user-id \
-  -F caption='hello image' \
-  -F photo=@/path/to/photo.jpg
-```
-
-### `sendDocument`
-
-```bash
-curl -X POST "http://localhost:8080/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
-  -F chat_id=wx-user-id \
-  -F caption='hello file' \
-  -F document=@/path/to/file.pdf
-```
-
-### `sendVideo`
-
-```bash
-curl -X POST "http://localhost:8080/bot${TELEGRAM_BOT_TOKEN}/sendVideo" \
-  -F chat_id=wx-user-id \
-  -F caption='hello video' \
-  -F video=@/path/to/video.mp4
-```
-
-### `sendVoice`
-
-```bash
-curl -X POST "http://localhost:8080/bot${TELEGRAM_BOT_TOKEN}/sendVoice" \
-  -F chat_id=wx-user-id \
-  -F caption='hello voice' \
-  -F voice=@/path/to/voice.ogg
-```
-
-### `sendAudio`
-
-```bash
-curl -X POST "http://localhost:8080/bot${TELEGRAM_BOT_TOKEN}/sendAudio" \
-  -F chat_id=wx-user-id \
-  -F caption='hello audio' \
-  -F audio=@/path/to/audio.mp3
-```
-
-### `sendAnimation`
-
-```bash
-curl -X POST "http://localhost:8080/bot${TELEGRAM_BOT_TOKEN}/sendAnimation" \
-  -F chat_id=wx-user-id \
-  -F caption='hello gif' \
-  -F animation=@/path/to/animation.gif
-```
-
 ### `sendChatAction`
 
 ```bash
@@ -172,7 +111,8 @@ GitHub Actions 负责两类自动化：
 
 ## 后续可扩展方向
 
-- URL 型媒体透传（而不只是 multipart 上传）
+- `sendPhoto`
+- `sendDocument`
 - QR 登录辅助接口
 - 更丰富的 Telegram Bot API 兼容面
 

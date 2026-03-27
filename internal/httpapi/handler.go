@@ -16,7 +16,7 @@ import (
 type Bridge interface {
 	GetMe(ctx context.Context) (BotProfile, error)
 	SendText(ctx context.Context, chatID string, text string) (SentMessage, error)
-	SendMedia(ctx context.Context, chatID string, method string, fileName string, data []byte, caption string) (SentMessage, error)
+	SendMedia(ctx context.Context, chatID string, fileName string, data []byte, caption string) (SentMessage, error)
 	SendTyping(ctx context.Context, chatID string, action string) error
 }
 
@@ -80,8 +80,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.handleGetMe(w, r)
 	case "sendMessage":
 		h.handleSendMessage(w, r)
-	case "sendPhoto", "sendDocument", "sendVideo", "sendVoice", "sendAudio", "sendAnimation":
-		h.handleSendMedia(w, r, method)
+	case "sendPhoto", "sendDocument", "sendVideo":
+		h.handleSendMedia(w, r)
 	case "sendChatAction":
 		h.handleSendChatAction(w, r)
 	default:
@@ -171,14 +171,14 @@ func (h *Handler) handleSendMessage(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h *Handler) handleSendMedia(w http.ResponseWriter, r *http.Request, method string) {
+func (h *Handler) handleSendMedia(w http.ResponseWriter, r *http.Request) {
 	req, err := decodeSendMediaRequest(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	result, sendErr := h.bridge.SendMedia(r.Context(), req.ChatID, method, req.FileName, req.Data, req.Caption)
+	result, sendErr := h.bridge.SendMedia(r.Context(), req.ChatID, req.FileName, req.Data, req.Caption)
 	if sendErr != nil {
 		writeBridgeError(w, sendErr)
 		return
@@ -310,7 +310,7 @@ func decodeBody(r *http.Request, target any) error {
 		case *sendMediaRequest:
 			value.ChatID = r.FormValue("chat_id")
 			value.Caption = r.FormValue("caption")
-			for _, field := range []string{"photo", "document", "video", "voice", "audio", "animation", "media"} {
+			for _, field := range []string{"photo", "document", "video", "media"} {
 				file, header, err := r.FormFile(field)
 				if err != nil {
 					continue

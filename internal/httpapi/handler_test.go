@@ -39,12 +39,11 @@ func (f *fakeBridge) SendText(_ context.Context, chatID string, text string) (Se
 	return f.sendTextResult, f.sendTextErr
 }
 
-func (f *fakeBridge) SendMedia(_ context.Context, chatID string, method string, fileName string, data []byte, caption string) (SentMessage, error) {
+func (f *fakeBridge) SendMedia(_ context.Context, chatID string, fileName string, data []byte, caption string) (SentMessage, error) {
 	f.lastChatID = chatID
 	f.lastFileName = fileName
 	f.lastMediaData = append([]byte(nil), data...)
 	f.lastCaption = caption
-	f.lastAction = method
 	return f.sendMediaResult, f.sendMediaErr
 }
 
@@ -230,9 +229,6 @@ func TestSendPhotoWithMultipartBodyCallsBridge(t *testing.T) {
 	if bridge.lastChatID != "wx-user-media" {
 		t.Fatalf("unexpected chat_id: %s", bridge.lastChatID)
 	}
-	if bridge.lastAction != "sendPhoto" {
-		t.Fatalf("unexpected method: %s", bridge.lastAction)
-	}
 	if bridge.lastFileName != "photo.jpg" {
 		t.Fatalf("unexpected file name: %s", bridge.lastFileName)
 	}
@@ -249,180 +245,6 @@ func TestSendPhotoWithMultipartBodyCallsBridge(t *testing.T) {
 	}
 	if resp.Result.Caption != "caption text" {
 		t.Fatalf("unexpected response caption: %s", resp.Result.Caption)
-	}
-}
-
-func TestSendVoiceWithMultipartBodyCallsBridge(t *testing.T) {
-	t.Parallel()
-
-	bridge := &fakeBridge{
-		sendMediaResult: SentMessage{
-			MessageID: 2002,
-			ChatID:    "wx-user-voice",
-			Text:      "voice caption",
-			SentAt:    time.Unix(1700000003, 0),
-		},
-	}
-
-	handler := NewHandler(Options{
-		TelegramToken: "secret-token",
-		Bridge:        bridge,
-	})
-
-	var body bytes.Buffer
-	writer := multipart.NewWriter(&body)
-	_ = writer.WriteField("chat_id", "wx-user-voice")
-	_ = writer.WriteField("caption", "voice caption")
-	part, err := writer.CreateFormFile("voice", "voice.ogg")
-	if err != nil {
-		t.Fatalf("create form file: %v", err)
-	}
-	if _, err = part.Write([]byte("voice-bytes")); err != nil {
-		t.Fatalf("write form file: %v", err)
-	}
-	if err = writer.Close(); err != nil {
-		t.Fatalf("close writer: %v", err)
-	}
-
-	req := httptest.NewRequest(http.MethodPost, "/botsecret-token/sendVoice", &body)
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-	rec := httptest.NewRecorder()
-
-	handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("unexpected status: got %d want %d", rec.Code, http.StatusOK)
-	}
-	if bridge.lastChatID != "wx-user-voice" {
-		t.Fatalf("unexpected chat_id: %s", bridge.lastChatID)
-	}
-	if bridge.lastAction != "sendVoice" {
-		t.Fatalf("unexpected method: %s", bridge.lastAction)
-	}
-	if bridge.lastFileName != "voice.ogg" {
-		t.Fatalf("unexpected file name: %s", bridge.lastFileName)
-	}
-	if bridge.lastCaption != "voice caption" {
-		t.Fatalf("unexpected caption: %s", bridge.lastCaption)
-	}
-	if string(bridge.lastMediaData) != "voice-bytes" {
-		t.Fatalf("unexpected payload: %s", string(bridge.lastMediaData))
-	}
-}
-
-func TestSendAudioWithMultipartBodyCallsBridge(t *testing.T) {
-	t.Parallel()
-
-	bridge := &fakeBridge{
-		sendMediaResult: SentMessage{
-			MessageID: 2003,
-			ChatID:    "wx-user-audio",
-			Text:      "audio caption",
-			SentAt:    time.Unix(1700000004, 0),
-		},
-	}
-
-	handler := NewHandler(Options{
-		TelegramToken: "secret-token",
-		Bridge:        bridge,
-	})
-
-	var body bytes.Buffer
-	writer := multipart.NewWriter(&body)
-	_ = writer.WriteField("chat_id", "wx-user-audio")
-	_ = writer.WriteField("caption", "audio caption")
-	part, err := writer.CreateFormFile("audio", "audio.mp3")
-	if err != nil {
-		t.Fatalf("create form file: %v", err)
-	}
-	if _, err = part.Write([]byte("audio-bytes")); err != nil {
-		t.Fatalf("write form file: %v", err)
-	}
-	if err = writer.Close(); err != nil {
-		t.Fatalf("close writer: %v", err)
-	}
-
-	req := httptest.NewRequest(http.MethodPost, "/botsecret-token/sendAudio", &body)
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-	rec := httptest.NewRecorder()
-
-	handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("unexpected status: got %d want %d", rec.Code, http.StatusOK)
-	}
-	if bridge.lastChatID != "wx-user-audio" {
-		t.Fatalf("unexpected chat_id: %s", bridge.lastChatID)
-	}
-	if bridge.lastAction != "sendAudio" {
-		t.Fatalf("unexpected method: %s", bridge.lastAction)
-	}
-	if bridge.lastFileName != "audio.mp3" {
-		t.Fatalf("unexpected file name: %s", bridge.lastFileName)
-	}
-	if bridge.lastCaption != "audio caption" {
-		t.Fatalf("unexpected caption: %s", bridge.lastCaption)
-	}
-	if string(bridge.lastMediaData) != "audio-bytes" {
-		t.Fatalf("unexpected payload: %s", string(bridge.lastMediaData))
-	}
-}
-
-func TestSendAnimationWithMultipartBodyCallsBridge(t *testing.T) {
-	t.Parallel()
-
-	bridge := &fakeBridge{
-		sendMediaResult: SentMessage{
-			MessageID: 2004,
-			ChatID:    "wx-user-animation",
-			Text:      "animation caption",
-			SentAt:    time.Unix(1700000005, 0),
-		},
-	}
-
-	handler := NewHandler(Options{
-		TelegramToken: "secret-token",
-		Bridge:        bridge,
-	})
-
-	var body bytes.Buffer
-	writer := multipart.NewWriter(&body)
-	_ = writer.WriteField("chat_id", "wx-user-animation")
-	_ = writer.WriteField("caption", "animation caption")
-	part, err := writer.CreateFormFile("animation", "funny.gif")
-	if err != nil {
-		t.Fatalf("create form file: %v", err)
-	}
-	if _, err = part.Write([]byte("gif-bytes")); err != nil {
-		t.Fatalf("write form file: %v", err)
-	}
-	if err = writer.Close(); err != nil {
-		t.Fatalf("close writer: %v", err)
-	}
-
-	req := httptest.NewRequest(http.MethodPost, "/botsecret-token/sendAnimation", &body)
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-	rec := httptest.NewRecorder()
-
-	handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("unexpected status: got %d want %d", rec.Code, http.StatusOK)
-	}
-	if bridge.lastChatID != "wx-user-animation" {
-		t.Fatalf("unexpected chat_id: %s", bridge.lastChatID)
-	}
-	if bridge.lastAction != "sendAnimation" {
-		t.Fatalf("unexpected method: %s", bridge.lastAction)
-	}
-	if bridge.lastFileName != "funny.gif" {
-		t.Fatalf("unexpected file name: %s", bridge.lastFileName)
-	}
-	if bridge.lastCaption != "animation caption" {
-		t.Fatalf("unexpected caption: %s", bridge.lastCaption)
-	}
-	if string(bridge.lastMediaData) != "gif-bytes" {
-		t.Fatalf("unexpected payload: %s", string(bridge.lastMediaData))
 	}
 }
 

@@ -108,7 +108,7 @@ func (s *Service) SendText(ctx context.Context, chatID string, text string) (htt
 }
 
 // SendTyping 将 Telegram chat action 转换为微信 typing 状态。
-func (s *Service) SendMedia(ctx context.Context, chatID string, method string, fileName string, data []byte, caption string) (httpapi.SentMessage, error) {
+func (s *Service) SendMedia(ctx context.Context, chatID string, fileName string, data []byte, caption string) (httpapi.SentMessage, error) {
 	contextToken, ok := s.client.GetContextToken(chatID)
 	if !ok || strings.TrimSpace(contextToken) == "" {
 		return httpapi.SentMessage{}, httpapi.ErrBadRequest("chat context token not found")
@@ -120,8 +120,7 @@ func (s *Service) SendMedia(ctx context.Context, chatID string, method string, f
 		return httpapi.SentMessage{}, httpapi.ErrBadRequest("media payload is empty")
 	}
 
-	err := s.client.SendMediaFile(ctx, chatID, contextToken, data, fileName, caption)
-	if err != nil {
+	if err := s.client.SendMediaFile(ctx, chatID, contextToken, data, fileName, caption); err != nil {
 		return httpapi.SentMessage{}, httpapi.ErrBadGateway(err.Error())
 	}
 
