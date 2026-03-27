@@ -17,12 +17,8 @@ type fakeClient struct {
 	lastSendTo          string
 	lastSendText        string
 	lastSendContext     string
-	lastMediaFileName   string
-	lastMediaCaption    string
-	lastMediaData       []byte
 	sendTextResult      string
 	sendTextErr         error
-	sendMediaErr        error
 	getConfigResult     *ilink.GetConfigResp
 	getConfigErr        error
 	sendTypingErr       error
@@ -40,15 +36,6 @@ func (f *fakeClient) SendText(_ context.Context, to string, text string, context
 	f.lastSendText = text
 	f.lastSendContext = contextToken
 	return f.sendTextResult, f.sendTextErr
-}
-
-func (f *fakeClient) SendMediaFile(_ context.Context, to string, contextToken string, data []byte, fileName string, caption string) error {
-	f.lastSendTo = to
-	f.lastSendContext = contextToken
-	f.lastMediaData = append([]byte(nil), data...)
-	f.lastMediaFileName = fileName
-	f.lastMediaCaption = caption
-	return f.sendMediaErr
 }
 
 func (f *fakeClient) GetContextToken(userID string) (string, bool) {
@@ -189,42 +176,6 @@ func TestSendTextUsesCachedContextToken(t *testing.T) {
 	}
 
 	if sent.ChatID != "wx-user-1" || sent.Text != "hello" {
-		t.Fatalf("unexpected send result: %+v", sent)
-	}
-}
-
-func TestSendMediaUsesCachedContextToken(t *testing.T) {
-	t.Parallel()
-
-	client := &fakeClient{
-		contextTokens: map[string]string{
-			"wx-user-1": "ctx-1",
-		},
-	}
-
-	service, err := NewService(client, &fakeStore{}, Config{})
-	if err != nil {
-		t.Fatalf("new service: %v", err)
-	}
-
-	sent, err := service.SendMedia(context.Background(), "wx-user-1", "photo.jpg", []byte("image-bytes"), "hi")
-	if err != nil {
-		t.Fatalf("send media: %v", err)
-	}
-
-	if client.lastSendContext != "ctx-1" {
-		t.Fatalf("unexpected context token: %s", client.lastSendContext)
-	}
-	if client.lastMediaFileName != "photo.jpg" {
-		t.Fatalf("unexpected file name: %s", client.lastMediaFileName)
-	}
-	if client.lastMediaCaption != "hi" {
-		t.Fatalf("unexpected caption: %s", client.lastMediaCaption)
-	}
-	if string(client.lastMediaData) != "image-bytes" {
-		t.Fatalf("unexpected media payload: %s", string(client.lastMediaData))
-	}
-	if sent.ChatID != "wx-user-1" || sent.Text != "hi" {
 		t.Fatalf("unexpected send result: %+v", sent)
 	}
 }

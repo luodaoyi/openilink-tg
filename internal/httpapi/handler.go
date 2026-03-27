@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -16,7 +15,6 @@ import (
 type Bridge interface {
 	GetMe(ctx context.Context) (BotProfile, error)
 	SendText(ctx context.Context, chatID string, text string) (SentMessage, error)
-	SendMedia(ctx context.Context, chatID string, fileName string, data []byte, caption string) (SentMessage, error)
 	SendTyping(ctx context.Context, chatID string, action string) error
 }
 
@@ -80,8 +78,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.handleGetMe(w, r)
 	case "sendMessage":
 		h.handleSendMessage(w, r)
-	case "sendPhoto", "sendDocument", "sendVideo":
-		h.handleSendMedia(w, r)
 	case "sendChatAction":
 		h.handleSendChatAction(w, r)
 	default:
@@ -171,33 +167,6 @@ func (h *Handler) handleSendMessage(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h *Handler) handleSendMedia(w http.ResponseWriter, r *http.Request) {
-	req, err := decodeSendMediaRequest(r)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	result, sendErr := h.bridge.SendMedia(r.Context(), req.ChatID, req.FileName, req.Data, req.Caption)
-	if sendErr != nil {
-		writeBridgeError(w, sendErr)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, apiResponse[messageResult]{
-		OK: true,
-		Result: messageResult{
-			MessageID: result.MessageID,
-			Date:      result.SentAt.Unix(),
-			Chat: chatResult{
-				ID:   result.ChatID,
-				Type: "private",
-			},
-			Caption: req.Caption,
-		},
-	})
-}
-
 func (h *Handler) handleSendChatAction(w http.ResponseWriter, r *http.Request) {
 	req, err := decodeSendChatActionRequest(r)
 	if err != nil {
@@ -221,13 +190,6 @@ type sendMessageRequest struct {
 	Text   string `json:"text"`
 }
 
-type sendMediaRequest struct {
-	ChatID   string `json:"chat_id"`
-	Caption  string `json:"caption"`
-	FileName string `json:"-"`
-	Data     []byte `json:"-"`
-}
-
 type sendChatActionRequest struct {
 	ChatID string `json:"chat_id"`
 	Action string `json:"action"`
@@ -243,23 +205,6 @@ func decodeSendMessageRequest(r *http.Request) (sendMessageRequest, error) {
 	}
 	if strings.TrimSpace(req.Text) == "" {
 		return sendMessageRequest{}, errors.New("text is required")
-	}
-	return req, nil
-}
-
-func decodeSendMediaRequest(r *http.Request) (sendMediaRequest, error) {
-	var req sendMediaRequest
-	if err := decodeBody(r, &req); err != nil {
-		return sendMediaRequest{}, err
-	}
-	if strings.TrimSpace(req.ChatID) == "" {
-		return sendMediaRequest{}, errors.New("chat_id is required")
-	}
-	if strings.TrimSpace(req.FileName) == "" {
-		return sendMediaRequest{}, errors.New("media file is required")
-	}
-	if len(req.Data) == 0 {
-		return sendMediaRequest{}, errors.New("media file is empty")
 	}
 	return req, nil
 }
@@ -292,38 +237,14 @@ func decodeBody(r *http.Request, target any) error {
 	case strings.HasPrefix(contentType, "application/x-www-form-urlencoded"),
 		strings.HasPrefix(contentType, "multipart/form-data"),
 		contentType == "":
-		if strings.HasPrefix(contentType, "multipart/form-data") {
-			if err := r.ParseMultipartForm(32 << 20); err != nil {
-				return fmt.Errorf("invalid multipart body: %w", err)
-			}
-		} else {
-			if err := r.ParseForm(); err != nil {
-				return fmt.Errorf("invalid form body: %w", err)
-			}
+		if err := r.ParseForm(); err != nil {
+			return fmt.Errorf("invalid form body: %w", err)
 		}
 
 		switch value := target.(type) {
 		case *sendMessageRequest:
 			value.ChatID = r.FormValue("chat_id")
 			value.Text = r.FormValue("text")
-			return nil
-		case *sendMediaRequest:
-			value.ChatID = r.FormValue("chat_id")
-			value.Caption = r.FormValue("caption")
-			for _, field := range []string{"photo", "document", "video", "media"} {
-				file, header, err := r.FormFile(field)
-				if err != nil {
-					continue
-				}
-				defer file.Close()
-				data, readErr := io.ReadAll(file)
-				if readErr != nil {
-					return fmt.Errorf("read uploaded file: %w", readErr)
-				}
-				value.FileName = header.Filename
-				value.Data = data
-				return nil
-			}
 			return nil
 		case *sendChatActionRequest:
 			value.ChatID = r.FormValue("chat_id")
@@ -420,8 +341,7 @@ type messageResult struct {
 	MessageID int64      `json:"message_id"`
 	Date      int64      `json:"date"`
 	Chat      chatResult `json:"chat"`
-	Text      string     `json:"text,omitempty"`
-	Caption   string     `json:"caption,omitempty"`
+	Text      string     `json:"text"`
 }
 
 type chatResult struct {
